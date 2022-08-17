@@ -11,7 +11,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-const namespace = "printer-01"
+const namespace = "printer_01"
 const printerInfo = "/printer/info"
 
 var (
