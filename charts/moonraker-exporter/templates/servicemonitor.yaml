@@ -10,4 +10,4 @@ spec:
       app: {{ .Release.Name }}
   endpoints:
   - port: moonraker-exporter
-    interval: "1s"
+    interval: "5s"
