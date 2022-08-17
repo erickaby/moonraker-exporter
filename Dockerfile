@@ -1,4 +1,4 @@
-FROM golang:1.15 AS build
+FROM golang:1.18 AS build
 
 LABEL org.opencontainers.image.source https://github.com/erickaby/moonraker-exporter
 LABEL maintainer="Ethan Rickaby <ejrickaby@gmail.com>"
