@@ -12,7 +12,6 @@ import (
 )
 
 const namespace = "printer_01"
-const printerInfo = "/printer/info"
 
 var (
 	up = prometheus.NewDesc(
@@ -51,8 +50,8 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (e *Exporter) collectStatus(ch chan<- prometheus.Metric) bool {
-	fmt.Println("Collecting metrics from " + e.moonrakerEndpoint + printerInfo)
-	req, err := http.NewRequest("GET", e.moonrakerEndpoint+printerInfo, nil)
+	fmt.Println("Collecting metrics from " + e.moonrakerEndpoint + "/printer/info")
+	req, err := http.NewRequest("GET", e.moonrakerEndpoint+"/printer/info", nil)
 	if err != nil {
 		fmt.Println("Failed to get Moonraker status")
 		return false
