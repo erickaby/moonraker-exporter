@@ -11,7 +11,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-const namespace = "printer_01"
+const (
+	namespace = "moonraker"
+)
 
 var (
 	up = prometheus.NewDesc(
