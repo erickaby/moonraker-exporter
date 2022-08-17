@@ -37,6 +37,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
+	fmt.Println("Collecting metrics from " + e.moonrakerEndpoint)
 	req, err := http.NewRequest("GET", e.moonrakerEndpoint+printerInfo, nil)
 	if err != nil {
 		ch <- prometheus.MustNewConstMetric(
@@ -60,6 +61,9 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 func main() {
 	moonrakerEndpoint := os.Getenv("MOONRAKER_ENDPOINT")
+
+	fmt.Println("Starting server to collect Moonraker Api Metrics")
+	fmt.Println("Preparing to collect metrics from " + moonrakerEndpoint)
 
 	exporter := NewExporter(moonrakerEndpoint)
 	prometheus.MustRegister(exporter)
