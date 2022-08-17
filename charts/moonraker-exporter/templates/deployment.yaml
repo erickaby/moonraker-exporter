@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: moonraker-exporter
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: Always
+          ports:
+            - containerPort: {{ .Values.port | default 9101 }}
+          command:
+          - "./app"
+          env:
+          - name: "MOONRAKER_ENDPOINT"
+            value: {{ .Values.moonraker.endpoint }}
+          - name: "PORT"
+            value: {{ .Values.port | default 9101 | quote }}

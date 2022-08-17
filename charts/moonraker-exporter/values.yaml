@@ -1,0 +1,8 @@
+image:
+  repository: ghcr.io/erickaby/moonraker-exporter
+  tag:
+
+port: 9101
+
+moonraker:
+  endpoint: http://localhost:7125

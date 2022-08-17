@@ -1,0 +1,14 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  ports:
+    - name: moonraker-exporter
+      port: {{ .Values.port | default 9101 }}
+      protocol: TCP
+  selector:
+    app: {{ .Release.Name }}

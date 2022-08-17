@@ -1,0 +1,8 @@
+apiVersion: v1
+appVersion: 0.0.0
+description: A Prometheus exporter for the Moonraker Api
+maintainers:
+  - email: ejrickaby@gmail.com
+    name: Ethan Rickaby
+name: moonraker-exporter
+version: 0.0.0
