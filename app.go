@@ -37,26 +37,32 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
-	fmt.Println("Collecting metrics from " + e.moonrakerEndpoint)
+	ok := e.collectStatus(ch)
+	// ok = e.collectLeaderMetric(ch) && ok
+	if ok {
+		ch <- prometheus.MustNewConstMetric(
+			up, prometheus.GaugeValue, 1.0,
+		)
+	} else {
+		ch <- prometheus.MustNewConstMetric(
+			up, prometheus.GaugeValue, 0.0,
+		)
+	}
+}
+
+func (e *Exporter) collectStatus(ch chan<- prometheus.Metric) bool {
+	fmt.Println("Collecting metrics from " + e.moonrakerEndpoint + printerInfo)
 	req, err := http.NewRequest("GET", e.moonrakerEndpoint+printerInfo, nil)
 	if err != nil {
-		ch <- prometheus.MustNewConstMetric(
-			up, prometheus.GaugeValue, 0,
-		)
-		log.Println(err)
-		return
+		fmt.Println("Failed to get Moonraker status")
+		return false
 	}
-
-	defer req.Body.Close()
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		return
+		return false
 	}
 	fmt.Println(string(body))
-
-	ch <- prometheus.MustNewConstMetric(
-		up, prometheus.GaugeValue, 1,
-	)
+	return true
 }
 
 func main() {
