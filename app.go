@@ -139,13 +139,18 @@ type ObjectsConfig struct {
 }
 
 func getConfigObjectList() []ObjectsConfig {
-	configFile, err := ioutil.ReadFile("./config/config.yaml")
+	configPath := "./config/config.yaml"
+	log.Debug("Reading config from file: " + configPath)
+	configFile, err := ioutil.ReadFile(configPath)
 	if err != nil {
 		log.Fatal(err)
 	}
 	config := make(map[interface{}]interface{})
 
-	yaml.Unmarshal(configFile, &config)
+	err = yaml.Unmarshal(configFile, &config)
+	if err != nil {
+		log.Fatalf("error: %v", err)
+	}
 
 	var objectList []ObjectsConfig
 	mapstructure.Decode(config["objects"], &objectList)
@@ -181,13 +186,13 @@ func (e *Exporter) collectObjectStatuses(ch chan<- prometheus.Metric) bool {
 		return false
 	}
 
-	log.Info("moonraker response", response)
+	log.Debug("moonraker response", response)
 
 	printerTag := os.Getenv("PRINTER_NAME")
 	for _, value := range objectList {
 		object := response.Result.Status[value.Name]
-		log.Info("name: ", value.Name)
-		log.Info("type: ", value.Type)
+		log.Trace("name: ", value.Name)
+		log.Trace("type: ", value.Type)
 		switch value.Type {
 		case "Extruder":
 			var t Extruder
@@ -227,7 +232,7 @@ func (e *Exporter) collectObjectStatuses(ch chan<- prometheus.Metric) bool {
 }
 
 func main() {
-	log.SetLevel(log.InfoLevel)
+	log.SetLevel(log.TraceLevel)
 	log.SetOutput(os.Stdout)
 
 	moonrakerEndpoint := os.Getenv("MOONRAKER_ENDPOINT")
