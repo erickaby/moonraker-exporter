@@ -28,3 +28,10 @@ spec:
             value: {{ .Values.printer.name }}
           - name: "PORT"
             value: {{ .Values.port | default 9101 | quote }}
+          volumeMounts:
+            - mountPath: /app/config
+              name: config
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-config

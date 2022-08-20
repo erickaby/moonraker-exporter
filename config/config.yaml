@@ -1,0 +1,11 @@
+objects:
+  - name: extruder
+    type: Extruder
+  - name: temperature_fan Mainboard
+    type: TemperatureFan
+  - name: heater_fan nozzle_cooling_fan
+    type: Fan
+  - name: print_stats
+    type: PrintStats
+  - name: fan
+    type: Fan

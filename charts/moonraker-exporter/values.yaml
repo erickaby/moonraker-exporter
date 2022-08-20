@@ -6,6 +6,17 @@ port: 9101
 
 moonraker:
   endpoint: http://localhost:7125
+  objects:
+    - name: extruder
+      type: Extruder
+    - name: temperature_fan Mainboard
+      type: TemperatureFan
+    - name: heater_fan nozzle_cooling_fan
+      type: Fan
+    - name: print_stats
+      type: PrintStats
+    - name: fan
+      type: Fan
 
 printer:
   name: printer-01

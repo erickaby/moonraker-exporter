@@ -7,6 +7,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
+
+	"github.com/mitchellh/mapstructure"
+	"gopkg.in/yaml.v3"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -22,14 +26,21 @@ var (
 		"Was the last Moonraker query successful.",
 		nil, nil,
 	)
-	// klipperStatus = prometheus.NewDesc(
-	// 	prometheus.BuildFQName(namespace, "", "klipper_status"),
-	// 	"Status of member in the wan cluster. 1=Alive, 2=Leaving, 3=Left, 4=Failed.",
-	// 	[]string{"member", "dc"}, nil,
-	// )
-	extruderTemperature = prometheus.NewDesc(
+	heaterTemperature = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "temperature", "celsius"),
 		"Temperature reading in degree Celsius.",
+		[]string{"printer", "name"},
+		nil,
+	)
+	fanSpeed = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "fan", "percentage"),
+		"Fan speed in percentage",
+		[]string{"printer", "name"},
+		nil,
+	)
+	pressureAdvance = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "pressure_advance", "amount"),
+		"Pressure Advance in amount",
 		[]string{"printer", "name"},
 		nil,
 	)
@@ -47,12 +58,13 @@ func NewExporter(moonrakerEndpoint string) *Exporter {
 
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- up
-	ch <- extruderTemperature
+	ch <- heaterTemperature
+	ch <- fanSpeed
 }
 
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	ok := e.collectStatus(ch)
-	ok = e.collectTemperature(ch) && ok
+	ok = e.collectObjectStatuses(ch) && ok
 	if ok {
 		ch <- prometheus.MustNewConstMetric(
 			up, prometheus.GaugeValue, 1.0,
@@ -81,24 +93,75 @@ func (e *Exporter) collectStatus(ch chan<- prometheus.Metric) bool {
 	return true
 }
 
-type MoonrakerResponse struct {
+type MoonrakerObjectQueryResponse struct {
 	Result struct {
-		Status struct {
-			Extruder struct {
-				PressureAdvance float64 `json:"pressure_advance"`
-				Target          float64 `json:"target"`
-				Power           float64 `json:"power"`
-				CanExtrude      bool    `json:"can_extrude"`
-				SmoothTime      float64 `json:"smooth_time"`
-				Temperature     float64 `json:"temperature"`
-			} `json:"extruder"`
-		} `json:"status"`
+		Status map[string]interface{} `json:"status"`
 	} `json:"result"`
 }
 
-func (e *Exporter) collectTemperature(ch chan<- prometheus.Metric) bool {
-	fmt.Println("Collecting metrics from " + e.moonrakerEndpoint + "/printer/objects/query?extruder")
-	res, err := http.Get(e.moonrakerEndpoint + "/printer/objects/query?extruder")
+type Extruder struct {
+	PressureAdvance float64 `json:"pressure_advance"`
+	Target          float64 `json:"target"`
+	Power           float64 `json:"power"`
+	CanExtrude      bool    `json:"can_extrude"`
+	SmoothTime      float64 `json:"smooth_time"`
+	Temperature     float64 `json:"temperature"`
+}
+
+type HeaterBed struct {
+	Target      float64 `json:"target"`
+	Power       float64 `json:"power"`
+	Temperature float64 `json:"temperature"`
+}
+
+type Fan struct {
+	Speed float64 `json:"speed"`
+}
+
+type TemperatureFan struct {
+	Speed       float64 `json:"speed"`
+	Temperature float64 `json:"temperature"`
+	Target      float64 `json:"target"`
+}
+
+type PrintStats struct {
+	PrintDuration float64 `json:"print_duration"`
+	TotalDuration float64 `json:"total_duration"`
+	FilamentUsed  float64 `json:"filament_used"`
+	Filename      string  `json:"filename"`
+	State         string  `json:"state"`
+	Message       string  `json:"message"`
+}
+
+type ObjectsConfig struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+func getConfigObjectList() []ObjectsConfig {
+	configFile, err := ioutil.ReadFile("./config/config.yaml")
+	if err != nil {
+		log.Fatal(err)
+	}
+	config := make(map[interface{}]interface{})
+
+	yaml.Unmarshal(configFile, &config)
+
+	var objectList []ObjectsConfig
+	mapstructure.Decode(config["objects"], &objectList)
+
+	return objectList
+}
+
+func (e *Exporter) collectObjectStatuses(ch chan<- prometheus.Metric) bool {
+	objectList := getConfigObjectList()
+	strs := make([]string, len(objectList))
+	for i, v := range objectList {
+		strs[i] = v.Name
+	}
+	printerObjects := strings.Join(strs, "&")
+	fmt.Println("Collecting metrics from " + e.moonrakerEndpoint + "/printer/objects/query?" + printerObjects)
+	res, err := http.Get(e.moonrakerEndpoint + "/printer/objects/query?" + printerObjects)
 	if err != nil {
 		fmt.Println("Failed to get temperature")
 		return false
@@ -109,22 +172,56 @@ func (e *Exporter) collectTemperature(ch chan<- prometheus.Metric) bool {
 		fmt.Println(err)
 		return false
 	}
-	fmt.Println(string(data))
 
-	var t MoonrakerResponse
-	err = json.Unmarshal(data, &t)
+	var response MoonrakerObjectQueryResponse
+
+	err = json.Unmarshal(data, &response)
 	if err != nil {
 		fmt.Println(err)
 		return false
 	}
 
-	extruder := t.Result.Status.Extruder
-
 	printerTag := os.Getenv("PRINTER_NAME")
-
-	ch <- prometheus.MustNewConstMetric(
-		extruderTemperature, prometheus.GaugeValue, extruder.Temperature, printerTag, "extruder",
-	)
+	for _, value := range objectList {
+		object := response.Result.Status[value.Name]
+		// fmt.Println("name: ", value.Name)
+		// fmt.Println("type: ", value.Type)
+		switch value.Type {
+		case "Extruder":
+			var t Extruder
+			mapstructure.Decode(object, &t)
+			fmt.Println("temp", t.Temperature)
+			ch <- prometheus.MustNewConstMetric(
+				heaterTemperature, prometheus.GaugeValue, t.Temperature, printerTag, value.Name,
+			)
+			ch <- prometheus.MustNewConstMetric(
+				pressureAdvance, prometheus.GaugeValue, t.PressureAdvance, printerTag, value.Name,
+			)
+		case "Fan":
+			var t Fan
+			mapstructure.Decode(object, &t)
+			ch <- prometheus.MustNewConstMetric(
+				fanSpeed, prometheus.GaugeValue, t.Speed, printerTag, value.Name,
+			)
+		case "HeaterBed":
+			var t HeaterBed
+			mapstructure.Decode(object, &t)
+			ch <- prometheus.MustNewConstMetric(
+				heaterTemperature, prometheus.GaugeValue, t.Temperature, printerTag, value.Name,
+			)
+		case "TemperatureFan":
+			var t TemperatureFan
+			mapstructure.Decode(object, &t)
+			ch <- prometheus.MustNewConstMetric(
+				heaterTemperature, prometheus.GaugeValue, t.Temperature, printerTag, value.Name,
+			)
+			ch <- prometheus.MustNewConstMetric(
+				fanSpeed, prometheus.GaugeValue, t.Speed, printerTag, value.Name,
+			)
+		default:
+			fmt.Println("Not sure how to handle", value.Name, " with type ", value.Type)
+		}
+	}
 	return true
 }
 
