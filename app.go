@@ -120,8 +120,10 @@ func (e *Exporter) collectTemperature(ch chan<- prometheus.Metric) bool {
 
 	extruder := t.Result.Status.Extruder
 
+	printerTag := os.Getenv("PRINTER_NAME")
+
 	ch <- prometheus.MustNewConstMetric(
-		extruderTemperature, prometheus.GaugeValue, extruder.Temperature, "printer-01", "extruder",
+		extruderTemperature, prometheus.GaugeValue, extruder.Temperature, printerTag, "extruder",
 	)
 	return true
 }

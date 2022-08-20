@@ -24,5 +24,7 @@ spec:
           env:
           - name: "MOONRAKER_ENDPOINT"
             value: {{ .Values.moonraker.endpoint }}
+          - name: "PRINTER_NAME"
+            value: {{ .Values.printer.name }}
           - name: "PORT"
             value: {{ .Values.port | default 9101 | quote }}
