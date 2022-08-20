@@ -2,9 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -14,6 +12,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -77,19 +77,19 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (e *Exporter) collectStatus(ch chan<- prometheus.Metric) bool {
-	fmt.Println("Collecting metrics from " + e.moonrakerEndpoint + "/printer/info")
+	log.Info("Collecting metrics from " + e.moonrakerEndpoint + "/printer/info")
 	res, err := http.Get(e.moonrakerEndpoint + "/printer/info")
 	if err != nil {
-		fmt.Println("Failed to get Moonraker status")
+		log.Fatal("Failed to get Moonraker status")
 		return false
 	}
 	defer res.Body.Close()
 	body, error := ioutil.ReadAll(res.Body)
 	if error != nil {
-		fmt.Println(error)
+		log.Fatal(error)
 		return false
 	}
-	fmt.Println(string(body))
+	log.Info(string(body))
 	return true
 }
 
@@ -160,16 +160,16 @@ func (e *Exporter) collectObjectStatuses(ch chan<- prometheus.Metric) bool {
 		strs[i] = v.Name
 	}
 	printerObjects := strings.Join(strs, "&")
-	fmt.Println("Collecting metrics from " + e.moonrakerEndpoint + "/printer/objects/query?" + printerObjects)
+	log.Info("Collecting metrics from " + e.moonrakerEndpoint + "/printer/objects/query?" + printerObjects)
 	res, err := http.Get(e.moonrakerEndpoint + "/printer/objects/query?" + printerObjects)
 	if err != nil {
-		fmt.Println("Failed to get temperature")
+		log.Warn("Failed to hit the object query endpoint")
 		return false
 	}
 	defer res.Body.Close()
 	data, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal(err)
 		return false
 	}
 
@@ -177,20 +177,21 @@ func (e *Exporter) collectObjectStatuses(ch chan<- prometheus.Metric) bool {
 
 	err = json.Unmarshal(data, &response)
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal(err)
 		return false
 	}
+
+	log.Info("moonraker response", response)
 
 	printerTag := os.Getenv("PRINTER_NAME")
 	for _, value := range objectList {
 		object := response.Result.Status[value.Name]
-		// fmt.Println("name: ", value.Name)
-		// fmt.Println("type: ", value.Type)
+		log.Info("name: ", value.Name)
+		log.Info("type: ", value.Type)
 		switch value.Type {
 		case "Extruder":
 			var t Extruder
 			mapstructure.Decode(object, &t)
-			fmt.Println("temp", t.Temperature)
 			ch <- prometheus.MustNewConstMetric(
 				heaterTemperature, prometheus.GaugeValue, t.Temperature, printerTag, value.Name,
 			)
@@ -219,17 +220,20 @@ func (e *Exporter) collectObjectStatuses(ch chan<- prometheus.Metric) bool {
 				fanSpeed, prometheus.GaugeValue, t.Speed, printerTag, value.Name,
 			)
 		default:
-			fmt.Println("Not sure how to handle", value.Name, " with type ", value.Type)
+			log.Warn("Not sure how to handle", value.Name, " with type ", value.Type)
 		}
 	}
 	return true
 }
 
 func main() {
+	log.SetLevel(log.InfoLevel)
+	log.SetOutput(os.Stdout)
+
 	moonrakerEndpoint := os.Getenv("MOONRAKER_ENDPOINT")
 
-	fmt.Println("Starting server to collect Moonraker Api Metrics")
-	fmt.Println("Preparing to collect metrics from " + moonrakerEndpoint)
+	log.Info("Starting server to collect Moonraker Api Metrics")
+	log.Info("Preparing to collect metrics from " + moonrakerEndpoint)
 
 	exporter := NewExporter(moonrakerEndpoint)
 	prometheus.MustRegister(exporter)
