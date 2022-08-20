@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
@@ -167,11 +168,14 @@ func (e *Exporter) collectObjectStatuses(ch chan<- prometheus.Metric) bool {
 	strs := make([]string, len(objectList))
 	for i, v := range objectList {
 		log.Trace("Add to query: " + v.Name)
-		strs[i] = v.Name
+		query := url.QueryEscape(v.Name)
+		log.Trace(query)
+		strs[i] = query
 	}
 	log.Debug("Join list of query names")
 	printerObjects := strings.Join(strs, "&")
 	log.Debug(printerObjects)
+
 	log.Info("Collecting metrics from " + e.moonrakerEndpoint + "/printer/objects/query?" + printerObjects)
 	res, err := http.Get(e.moonrakerEndpoint + "/printer/objects/query?" + printerObjects)
 	if err != nil {
