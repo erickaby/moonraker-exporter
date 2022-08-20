@@ -4,6 +4,8 @@ image:
 
 port: 9101
 
+logLevel: info
+
 moonraker:
   endpoint: http://localhost:7125
   objects:

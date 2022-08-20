@@ -232,7 +232,19 @@ func (e *Exporter) collectObjectStatuses(ch chan<- prometheus.Metric) bool {
 }
 
 func main() {
-	log.SetLevel(log.TraceLevel)
+	logLevel := os.Getenv("LOG_LEVEL")
+	switch logLevel {
+	case "trace":
+		log.SetLevel(log.TraceLevel)
+	case "debug":
+		log.SetLevel(log.DebugLevel)
+	case "info":
+		log.SetLevel(log.InfoLevel)
+	case "warn":
+		log.SetLevel(log.WarnLevel)
+	default:
+		log.SetLevel(log.InfoLevel)
+	}
 	log.SetOutput(os.Stdout)
 
 	moonrakerEndpoint := os.Getenv("MOONRAKER_ENDPOINT")
