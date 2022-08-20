@@ -147,24 +147,31 @@ func getConfigObjectList() []ObjectsConfig {
 	}
 	config := make(map[interface{}]interface{})
 
+	log.Debug("Yaml Unmarshal yaml file")
 	err = yaml.Unmarshal(configFile, &config)
 	if err != nil {
 		log.Fatalf("error: %v", err)
 	}
 
 	var objectList []ObjectsConfig
+	log.Debug("mapstructure to objects")
 	mapstructure.Decode(config["objects"], &objectList)
 
 	return objectList
 }
 
 func (e *Exporter) collectObjectStatuses(ch chan<- prometheus.Metric) bool {
+	log.Debug("Get list of objects from config")
 	objectList := getConfigObjectList()
+	log.Debug("Create query string from object list")
 	strs := make([]string, len(objectList))
 	for i, v := range objectList {
+		log.Trace("Add to query: " + v.Name)
 		strs[i] = v.Name
 	}
+	log.Debug("Join list of query names")
 	printerObjects := strings.Join(strs, "&")
+	log.Debug(printerObjects)
 	log.Info("Collecting metrics from " + e.moonrakerEndpoint + "/printer/objects/query?" + printerObjects)
 	res, err := http.Get(e.moonrakerEndpoint + "/printer/objects/query?" + printerObjects)
 	if err != nil {
@@ -172,21 +179,24 @@ func (e *Exporter) collectObjectStatuses(ch chan<- prometheus.Metric) bool {
 		return false
 	}
 	defer res.Body.Close()
+	log.Debug("Reading body of response")
 	data, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		log.Fatal(err)
 		return false
 	}
+	log.Trace(data)
 
 	var response MoonrakerObjectQueryResponse
 
+	log.Debug("Json unmarshal body of response")
 	err = json.Unmarshal(data, &response)
 	if err != nil {
 		log.Fatal(err)
 		return false
 	}
 
-	log.Debug("moonraker response", response)
+	log.Debug("Json unmarshaled:", response)
 
 	printerTag := os.Getenv("PRINTER_NAME")
 	for _, value := range objectList {
@@ -195,6 +205,7 @@ func (e *Exporter) collectObjectStatuses(ch chan<- prometheus.Metric) bool {
 		log.Trace("type: ", value.Type)
 		switch value.Type {
 		case "Extruder":
+			log.Trace("case = Extruder")
 			var t Extruder
 			mapstructure.Decode(object, &t)
 			ch <- prometheus.MustNewConstMetric(
@@ -204,18 +215,21 @@ func (e *Exporter) collectObjectStatuses(ch chan<- prometheus.Metric) bool {
 				pressureAdvance, prometheus.GaugeValue, t.PressureAdvance, printerTag, value.Name,
 			)
 		case "Fan":
+			log.Trace("case = Fan")
 			var t Fan
 			mapstructure.Decode(object, &t)
 			ch <- prometheus.MustNewConstMetric(
 				fanSpeed, prometheus.GaugeValue, t.Speed, printerTag, value.Name,
 			)
 		case "HeaterBed":
+			log.Trace("case = HeaterBed")
 			var t HeaterBed
 			mapstructure.Decode(object, &t)
 			ch <- prometheus.MustNewConstMetric(
 				heaterTemperature, prometheus.GaugeValue, t.Temperature, printerTag, value.Name,
 			)
 		case "TemperatureFan":
+			log.Trace("case = TemperatureFan")
 			var t TemperatureFan
 			mapstructure.Decode(object, &t)
 			ch <- prometheus.MustNewConstMetric(
@@ -225,6 +239,7 @@ func (e *Exporter) collectObjectStatuses(ch chan<- prometheus.Metric) bool {
 				fanSpeed, prometheus.GaugeValue, t.Speed, printerTag, value.Name,
 			)
 		default:
+			log.Trace("case = default")
 			log.Warn("Not sure how to handle", value.Name, " with type ", value.Type)
 		}
 	}
