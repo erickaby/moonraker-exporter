@@ -109,37 +109,37 @@ type MoonrakerObjectQueryResponse struct {
 }
 
 type Extruder struct {
-	PressureAdvance float64 `json:"pressure_advance"`
-	Target          float64 `json:"target"`
-	Power           float64 `json:"power"`
-	CanExtrude      bool    `json:"can_extrude"`
-	SmoothTime      float64 `json:"smooth_time"`
-	Temperature     float64 `json:"temperature"`
+	PressureAdvance float64 `mapstructure:"pressure_advance"`
+	Target          float64 `mapstructure:"target"`
+	Power           float64 `mapstructure:"power"`
+	CanExtrude      bool    `mapstructure:"can_extrude"`
+	SmoothTime      float64 `mapstructure:"smooth_time"`
+	Temperature     float64 `mapstructure:"temperature"`
 }
 
 type HeaterBed struct {
-	Target      float64 `json:"target"`
-	Power       float64 `json:"power"`
-	Temperature float64 `json:"temperature"`
+	Target      float64 `mapstructure:"target"`
+	Power       float64 `mapstructure:"power"`
+	Temperature float64 `mapstructure:"temperature"`
 }
 
 type Fan struct {
-	Speed float64 `json:"speed"`
+	Speed float64 `mapstructure:"speed"`
 }
 
 type TemperatureFan struct {
-	Speed       float64 `json:"speed"`
-	Temperature float64 `json:"temperature"`
-	Target      float64 `json:"target"`
+	Speed       float64 `mapstructure:"speed"`
+	Temperature float64 `mapstructure:"temperature"`
+	Target      float64 `mapstructure:"target"`
 }
 
 type PrintStats struct {
-	PrintDuration float64 `json:"print_duration"`
-	TotalDuration float64 `json:"total_duration"`
-	FilamentUsed  float64 `json:"filament_used"`
-	Filename      string  `json:"filename"`
-	State         string  `json:"state"`
-	Message       string  `json:"message"`
+	PrintDuration float64 `mapstructure:"print_duration"`
+	TotalDuration float64 `mapstructure:"total_duration"`
+	FilamentUsed  float64 `mapstructure:"filament_used"`
+	Filename      string  `mapstructure:"filename"`
+	State         string  `mapstructure:"state"`
+	Message       string  `mapstructure:"message"`
 }
 
 type ObjectsConfig struct {
@@ -221,12 +221,15 @@ func (e *Exporter) collectObjectStatuses(ch chan<- prometheus.Metric) bool {
 			log.Trace("case = Extruder")
 			var t Extruder
 			mapstructure.Decode(object, &t)
+			log.Trace(t.Temperature)
 			ch <- prometheus.MustNewConstMetric(
 				heaterTemperature, prometheus.GaugeValue, t.Temperature, printerTag, value.Name,
 			)
+			log.Trace(t.PressureAdvance)
 			ch <- prometheus.MustNewConstMetric(
 				pressureAdvance, prometheus.GaugeValue, t.PressureAdvance, printerTag, value.Name,
 			)
+			log.Trace(t.SmoothTime)
 			ch <- prometheus.MustNewConstMetric(
 				pressureAdvanceSmoothTime, prometheus.GaugeValue, t.SmoothTime, printerTag, value.Name,
 			)
@@ -234,6 +237,7 @@ func (e *Exporter) collectObjectStatuses(ch chan<- prometheus.Metric) bool {
 			log.Trace("case = Fan")
 			var t Fan
 			mapstructure.Decode(object, &t)
+			log.Trace(t.Speed)
 			ch <- prometheus.MustNewConstMetric(
 				fanSpeed, prometheus.GaugeValue, t.Speed, printerTag, value.Name,
 			)
@@ -241,6 +245,7 @@ func (e *Exporter) collectObjectStatuses(ch chan<- prometheus.Metric) bool {
 			log.Trace("case = HeaterBed")
 			var t HeaterBed
 			mapstructure.Decode(object, &t)
+			log.Trace(t.Temperature)
 			ch <- prometheus.MustNewConstMetric(
 				heaterTemperature, prometheus.GaugeValue, t.Temperature, printerTag, value.Name,
 			)
@@ -248,9 +253,11 @@ func (e *Exporter) collectObjectStatuses(ch chan<- prometheus.Metric) bool {
 			log.Trace("case = TemperatureFan")
 			var t TemperatureFan
 			mapstructure.Decode(object, &t)
+			log.Trace(t.Temperature)
 			ch <- prometheus.MustNewConstMetric(
 				heaterTemperature, prometheus.GaugeValue, t.Temperature, printerTag, value.Name,
 			)
+			log.Trace(t.Speed)
 			ch <- prometheus.MustNewConstMetric(
 				fanSpeed, prometheus.GaugeValue, t.Speed, printerTag, value.Name,
 			)

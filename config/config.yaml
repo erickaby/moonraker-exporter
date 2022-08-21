@@ -1,7 +1,7 @@
 objects:
   - name: extruder
     type: Extruder
-  - name: heater_fan nozzle_cooling_fan
+  - name: heater_fan hotend_fan
     type: Fan
   - name: heater_bed
     type: HeaterBed
