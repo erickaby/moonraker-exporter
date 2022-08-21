@@ -45,6 +45,12 @@ var (
 		[]string{"printer", "name"},
 		nil,
 	)
+	pressureAdvanceSmoothTime = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "pressure_advance", "smooth_time"),
+		"Pressure Advance in smooth time",
+		[]string{"printer", "name"},
+		nil,
+	)
 )
 
 type Exporter struct {
@@ -61,6 +67,8 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- up
 	ch <- heaterTemperature
 	ch <- fanSpeed
+	ch <- pressureAdvance
+	ch <- pressureAdvanceSmoothTime
 }
 
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
@@ -207,6 +215,7 @@ func (e *Exporter) collectObjectStatuses(ch chan<- prometheus.Metric) bool {
 		object := response.Result.Status[value.Name]
 		log.Trace("name: ", value.Name)
 		log.Trace("type: ", value.Type)
+		log.Trace("object: ", object)
 		switch value.Type {
 		case "Extruder":
 			log.Trace("case = Extruder")
@@ -217,6 +226,9 @@ func (e *Exporter) collectObjectStatuses(ch chan<- prometheus.Metric) bool {
 			)
 			ch <- prometheus.MustNewConstMetric(
 				pressureAdvance, prometheus.GaugeValue, t.PressureAdvance, printerTag, value.Name,
+			)
+			ch <- prometheus.MustNewConstMetric(
+				pressureAdvanceSmoothTime, prometheus.GaugeValue, t.SmoothTime, printerTag, value.Name,
 			)
 		case "Fan":
 			log.Trace("case = Fan")
